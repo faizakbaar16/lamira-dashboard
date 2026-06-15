@@ -1,0 +1,17 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": ".next",
+  "functions": {
+    "app/api/pdf/bebek/route.tsx": {
+      "maxDuration": 30
+    },
+    "app/api/pdf/penggajian/route.tsx": {
+      "maxDuration": 30
+    },
+    "app/api/sync/[module]/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
