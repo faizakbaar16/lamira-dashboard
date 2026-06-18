@@ -124,29 +124,52 @@
   }
 }
 
-/* ─── Emil-philosophy micro-interactions ─────────────────────────── */
-@layer utilities {
+/* ─── Keyframes ──────────────────────────────────────────────────── */
+@keyframes stagger-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes page-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  /* Pressable — scale down on :active, fast ease-out */
-  .pressable {
-    transition: transform 160ms var(--ease-out);
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .pressable:hover {
-      transform: translateY(-1px);
-    }
-  }
-  .pressable:active {
+/* ─── Emil-philosophy micro-interactions (Tailwind v4 @utility) ──── */
+@utility pressable {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  &:active {
     transform: scale(0.97);
     transition-duration: 100ms;
   }
 
-  /* Card hover — subtle lift */
-  .card-hover {
-    transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
-  }
   @media (hover: hover) and (pointer: fine) {
-    .card-hover:hover {
+    &:hover {
+      transform: translateY(-1px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: opacity 150ms ease;
+    &:active { transform: none; }
+    &:hover  { transform: none; }
+  }
+}
+
+@utility card-hover {
+  transition: box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1),
+              transform   200ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
       transform: translateY(-2px);
       box-shadow:
         0 8px 24px -4px rgb(0 0 0 / 0.10),
@@ -154,95 +177,47 @@
     }
   }
 
-  /* Surface shadows */
-  .surface-raised {
-    box-shadow:
-      0 1px 3px 0 rgb(0 0 0 / 0.07),
-      0 1px 2px -1px rgb(0 0 0 / 0.05);
-  }
-  .surface-elevated {
-    box-shadow:
-      0 4px 12px -2px rgb(0 0 0 / 0.08),
-      0 2px 4px -1px rgb(0 0 0 / 0.05);
-  }
-
-  /* Stagger animation for lists */
-  .stagger-item {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: stagger-in 300ms var(--ease-out) forwards;
-  }
-  .stagger-item:nth-child(1) { animation-delay: 0ms; }
-  .stagger-item:nth-child(2) { animation-delay: 40ms; }
-  .stagger-item:nth-child(3) { animation-delay: 80ms; }
-  .stagger-item:nth-child(4) { animation-delay: 120ms; }
-  .stagger-item:nth-child(5) { animation-delay: 160ms; }
-  .stagger-item:nth-child(6) { animation-delay: 200ms; }
-
-  @keyframes stagger-in {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Page-level fade-in */
-  .page-enter {
-    animation: page-fade 350ms var(--ease-out) forwards;
-  }
-  @keyframes page-fade {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Gold gradient badge */
-  .gold-badge {
-    background: linear-gradient(135deg, #c9a227 0%, #e8bc2d 50%, #c9a227 100%);
-    background-size: 200% 200%;
-  }
-
-  /* Forest stat card */
-  .stat-card-forest {
-    background: linear-gradient(145deg, #1a3a2a 0%, #2d5c42 100%);
-  }
-
-  /* Sidebar active indicator — left border pill */
-  .nav-active-pip {
-    position: relative;
-  }
-  .nav-active-pip::before {
-    content: '';
-    position: absolute;
-    left: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 20px;
-    background: #c9a227;
-    border-radius: 0 2px 2px 0;
-  }
-
-  /* Reduced motion: keep opacity, remove movement */
   @media (prefers-reduced-motion: reduce) {
-    .stagger-item,
-    .page-enter {
-      animation: none;
-      opacity: 1;
-      transform: none;
-    }
-    .pressable,
-    .card-hover {
-      transition: opacity 150ms ease;
-    }
-    .pressable:active,
-    .card-hover:hover {
-      transform: none;
-    }
+    transition: opacity 150ms ease;
+    &:hover { transform: none; }
+  }
+}
+
+@utility surface-raised {
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.07),
+    0 1px 2px -1px rgb(0 0 0 / 0.05);
+}
+
+@utility surface-elevated {
+  box-shadow:
+    0 4px 12px -2px rgb(0 0 0 / 0.08),
+    0 2px 4px -1px rgb(0 0 0 / 0.05);
+}
+
+@utility stagger-item {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: stagger-in 300ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+
+  &:nth-child(1) { animation-delay: 0ms; }
+  &:nth-child(2) { animation-delay: 40ms; }
+  &:nth-child(3) { animation-delay: 80ms; }
+  &:nth-child(4) { animation-delay: 120ms; }
+  &:nth-child(5) { animation-delay: 160ms; }
+  &:nth-child(6) { animation-delay: 200ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility page-enter {
+  animation: page-fade 350ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
   }
 }
