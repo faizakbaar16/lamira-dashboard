@@ -65,43 +65,48 @@
   --gold: #c9a227;
   --cream: #f7f3ec;
 
-  /* Semantic tokens — light mode (cream/ivory base) */
-  --background: oklch(0.972 0.008 85);       /* warm cream */
-  --foreground: oklch(0.18 0.03 150);        /* near-black green-tinted */
-  --card: oklch(0.985 0.005 85);             /* ivory card */
+  /* Semantic tokens — light mode */
+  --background: oklch(0.972 0.008 85);
+  --foreground: oklch(0.18 0.03 150);
+  --card: oklch(0.99 0.003 85);
   --card-foreground: oklch(0.18 0.03 150);
-  --popover: oklch(0.985 0.005 85);
+  --popover: oklch(0.99 0.003 85);
   --popover-foreground: oklch(0.18 0.03 150);
-  --primary: oklch(0.28 0.08 155);           /* forest green */
+  --primary: oklch(0.28 0.08 155);
   --primary-foreground: oklch(0.97 0.005 85);
-  --secondary: oklch(0.93 0.015 85);         /* warm gray */
+  --secondary: oklch(0.93 0.015 85);
   --secondary-foreground: oklch(0.28 0.08 155);
   --muted: oklch(0.94 0.01 85);
   --muted-foreground: oklch(0.52 0.03 150);
-  --accent: oklch(0.82 0.09 85);             /* warm gold accent */
+  --accent: oklch(0.82 0.09 85);
   --accent-foreground: oklch(0.18 0.03 150);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.88 0.015 85);
+  --border: oklch(0.89 0.012 85);
   --input: oklch(0.91 0.01 85);
   --ring: oklch(0.28 0.08 155);
   --radius: 0.75rem;
 
-  /* Chart colors — Lamira palette */
-  --chart-1: oklch(0.55 0.13 155);           /* forest green */
-  --chart-2: oklch(0.72 0.12 85);            /* warm gold */
-  --chart-3: oklch(0.65 0.1 200);            /* teal */
-  --chart-4: oklch(0.62 0.14 30);            /* earth/orange */
-  --chart-5: oklch(0.45 0.09 270);           /* muted indigo */
+  /* Chart colors */
+  --chart-1: oklch(0.55 0.13 155);
+  --chart-2: oklch(0.72 0.12 85);
+  --chart-3: oklch(0.65 0.1 200);
+  --chart-4: oklch(0.62 0.14 30);
+  --chart-5: oklch(0.45 0.09 270);
 
   /* Sidebar */
-  --sidebar: #1a3a2a;                         /* forest green sidebar */
+  --sidebar: #1a3a2a;
   --sidebar-foreground: oklch(0.92 0.015 85);
-  --sidebar-primary: #c9a227;                 /* gold active */
+  --sidebar-primary: #c9a227;
   --sidebar-primary-foreground: #1a3a2a;
   --sidebar-accent: oklch(0.32 0.08 155);
   --sidebar-accent-foreground: oklch(0.95 0.01 85);
   --sidebar-border: oklch(0.32 0.08 155);
   --sidebar-ring: #c9a227;
+
+  /* Emil-style easing curves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @layer base {
@@ -110,27 +115,134 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   html {
     @apply font-sans;
   }
 }
 
-/* Lamira utility classes */
+/* ─── Emil-philosophy micro-interactions ─────────────────────────── */
 @layer utilities {
-  .stat-card-gold {
-    background: linear-gradient(135deg, #1a3a2a 0%, #2d5c42 100%);
-    color: #f7f3ec;
+
+  /* Pressable — scale down on :active, fast ease-out */
+  .pressable {
+    transition: transform 160ms var(--ease-out);
   }
-  .stat-card-gold .stat-value {
-    color: #c9a227;
+  @media (hover: hover) and (pointer: fine) {
+    .pressable:hover {
+      transform: translateY(-1px);
+    }
+  }
+  .pressable:active {
+    transform: scale(0.97);
+    transition-duration: 100ms;
   }
 
+  /* Card hover — subtle lift */
+  .card-hover {
+    transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 8px 24px -4px rgb(0 0 0 / 0.10),
+        0 4px 8px -2px rgb(0 0 0 / 0.06);
+    }
+  }
+
+  /* Surface shadows */
   .surface-raised {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.07),
+      0 1px 2px -1px rgb(0 0 0 / 0.05);
+  }
+  .surface-elevated {
+    box-shadow:
+      0 4px 12px -2px rgb(0 0 0 / 0.08),
+      0 2px 4px -1px rgb(0 0 0 / 0.05);
   }
 
-  .surface-elevated {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  /* Stagger animation for lists */
+  .stagger-item {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: stagger-in 300ms var(--ease-out) forwards;
+  }
+  .stagger-item:nth-child(1) { animation-delay: 0ms; }
+  .stagger-item:nth-child(2) { animation-delay: 40ms; }
+  .stagger-item:nth-child(3) { animation-delay: 80ms; }
+  .stagger-item:nth-child(4) { animation-delay: 120ms; }
+  .stagger-item:nth-child(5) { animation-delay: 160ms; }
+  .stagger-item:nth-child(6) { animation-delay: 200ms; }
+
+  @keyframes stagger-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Page-level fade-in */
+  .page-enter {
+    animation: page-fade 350ms var(--ease-out) forwards;
+  }
+  @keyframes page-fade {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Gold gradient badge */
+  .gold-badge {
+    background: linear-gradient(135deg, #c9a227 0%, #e8bc2d 50%, #c9a227 100%);
+    background-size: 200% 200%;
+  }
+
+  /* Forest stat card */
+  .stat-card-forest {
+    background: linear-gradient(145deg, #1a3a2a 0%, #2d5c42 100%);
+  }
+
+  /* Sidebar active indicator — left border pill */
+  .nav-active-pip {
+    position: relative;
+  }
+  .nav-active-pip::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: #c9a227;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* Reduced motion: keep opacity, remove movement */
+  @media (prefers-reduced-motion: reduce) {
+    .stagger-item,
+    .page-enter {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+    .pressable,
+    .card-hover {
+      transition: opacity 150ms ease;
+    }
+    .pressable:active,
+    .card-hover:hover {
+      transform: none;
+    }
   }
 }

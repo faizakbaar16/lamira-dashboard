@@ -47,37 +47,53 @@ export function AppSidebar() {
     <aside
       className="fixed left-0 top-0 h-full w-16 flex flex-col items-center py-4 gap-1 z-50"
       style={{
-        background: "#1a3a2a",
-        borderRight: "1px solid rgba(255,255,255,0.08)",
+        background: "linear-gradient(180deg, #1a3a2a 0%, #162e22 100%)",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      {/* Logo */}
-      <div className="mb-4 flex items-center justify-center w-10 h-10 rounded-xl bg-[#c9a227]/20 border border-[#c9a227]/30">
+      {/* Logo mark */}
+      <Link
+        href="/"
+        className="mb-4 flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 pressable"
+        style={{
+          background: "rgba(201, 162, 39, 0.15)",
+          border: "1px solid rgba(201, 162, 39, 0.25)",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+        }}
+        aria-label="Kebun Lamira"
+      >
         <Leaf className="w-5 h-5 text-[#c9a227]" />
-      </div>
+      </Link>
 
-      <div className="w-8 h-px bg-white/10 mb-2" />
+      <div className="w-8 h-px mb-2" style={{ background: "rgba(255,255,255,0.08)" }} />
 
-      {/* Nav items */}
-      <nav className="flex flex-col items-center gap-1 flex-1">
+      {/* Main nav */}
+      <nav className="flex flex-col items-center gap-0.5 flex-1">
         {NAV_ITEMS.map(({ href, icon: Icon, label, exact }) => {
           const active = isActive(pathname, href, exact)
           return (
             <Tooltip key={href}>
               <TooltipTrigger
                 className={cn(
-                  "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-150 cursor-pointer",
+                  "relative flex items-center justify-center w-10 h-10 rounded-xl",
+                  "transition-all duration-200 cursor-pointer outline-none",
+                  "focus-visible:ring-2 focus-visible:ring-[#c9a227]/60",
                   active
-                    ? "bg-[#c9a227] text-[#1a3a2a]"
-                    : "text-white/50 hover:text-white hover:bg-white/10"
+                    ? "bg-[#c9a227] text-[#1a3a2a] shadow-md"
+                    : "text-white/45 hover:text-white/90 hover:bg-white/8"
                 )}
+                style={
+                  active
+                    ? { boxShadow: "0 2px 8px rgba(201,162,39,0.35)" }
+                    : undefined
+                }
                 render={
                   <Link href={href}>
-                    <Icon className="w-5 h-5" />
+                    <Icon className={cn("w-[18px] h-[18px]", active && "drop-shadow-sm")} />
                   </Link>
                 }
               />
-              <TooltipContent side="right" className="font-medium">
+              <TooltipContent side="right" className="font-medium text-xs">
                 {label}
               </TooltipContent>
             </Tooltip>
@@ -86,32 +102,39 @@ export function AppSidebar() {
       </nav>
 
       {/* Bottom actions */}
-      <div className="flex flex-col items-center gap-1 mt-auto">
+      <div className="flex flex-col items-center gap-0.5 mt-auto">
+        <div className="w-8 h-px mb-1" style={{ background: "rgba(255,255,255,0.08)" }} />
+
         <Tooltip>
           <TooltipTrigger
             className={cn(
-              "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-150 cursor-pointer",
+              "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 cursor-pointer",
+              "focus-visible:ring-2 focus-visible:ring-[#c9a227]/60 outline-none",
               isActive(pathname, "/pengaturan")
                 ? "bg-[#c9a227] text-[#1a3a2a]"
-                : "text-white/50 hover:text-white hover:bg-white/10"
+                : "text-white/45 hover:text-white/90 hover:bg-white/8"
             )}
             render={
               <Link href="/pengaturan">
-                <Settings className="w-5 h-5" />
+                <Settings className="w-[18px] h-[18px]" />
               </Link>
             }
           />
-          <TooltipContent side="right">Pengaturan</TooltipContent>
+          <TooltipContent side="right" className="text-xs">Pengaturan</TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger
             onClick={handleLogout}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/50 hover:text-red-400 hover:bg-red-400/10 transition-all duration-150 cursor-pointer"
+            className={cn(
+              "flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer transition-all duration-200",
+              "text-white/35 hover:text-red-400 hover:bg-red-400/10",
+              "focus-visible:ring-2 focus-visible:ring-red-400/50 outline-none"
+            )}
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-[18px] h-[18px]" />
           </TooltipTrigger>
-          <TooltipContent side="right">Keluar</TooltipContent>
+          <TooltipContent side="right" className="text-xs">Keluar</TooltipContent>
         </Tooltip>
       </div>
     </aside>

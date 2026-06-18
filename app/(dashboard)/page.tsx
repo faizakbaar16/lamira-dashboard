@@ -92,41 +92,49 @@ export default async function HomePage() {
   return (
     <PageShell title="Beranda" description={today}>
       {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title="Produksi Hari Ini"
-          value={data.todayEggs !== null ? formatNumber(data.todayEggs - data.todayReject) : "—"}
-          subtitle={data.todayEggs !== null ? `${data.todayReject} reject dari ${data.todayEggs}` : "Belum dicatat"}
-          icon={Bird}
-          variant="forest"
-        />
-        <StatCard
-          title="Stok Pakan"
-          value={data.lowStockFeeds.length === 0 ? "Aman" : `${data.lowStockFeeds.length} rendah`}
-          subtitle={data.lowStockFeeds.length === 0 ? "Semua stok cukup" : data.lowStockFeeds.map((f) => f.name).join(", ")}
-          icon={Package}
-          variant={data.lowStockFeeds.length > 0 ? "gold" : "default"}
-        />
-        <StatCard
-          title="Jadwal Overdue"
-          value={data.overdueSchedules.length === 0 ? "0" : String(data.overdueSchedules.length)}
-          subtitle={data.overdueSchedules.length === 0 ? "Semua jadwal terpenuhi" : "Perlu tindakan segera"}
-          icon={Sprout}
-          variant={data.overdueSchedules.length > 0 ? "gold" : "default"}
-        />
-        <StatCard
-          title="Proyek Aktif"
-          value={String(data.activeProjects.length)}
-          subtitle={data.activeProjects.length > 0 ? data.activeProjects[0].name : "Tidak ada proyek berjalan"}
-          icon={HardHat}
-          variant="default"
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div className="stagger-item">
+          <StatCard
+            title="Produksi Hari Ini"
+            value={data.todayEggs !== null ? formatNumber(data.todayEggs - data.todayReject) : "—"}
+            subtitle={data.todayEggs !== null ? `${data.todayReject} reject dari ${data.todayEggs}` : "Belum dicatat"}
+            icon={Bird}
+            variant="forest"
+          />
+        </div>
+        <div className="stagger-item">
+          <StatCard
+            title="Stok Pakan"
+            value={data.lowStockFeeds.length === 0 ? "Aman" : `${data.lowStockFeeds.length} rendah`}
+            subtitle={data.lowStockFeeds.length === 0 ? "Semua stok cukup" : data.lowStockFeeds.map((f) => f.name).join(", ")}
+            icon={Package}
+            variant={data.lowStockFeeds.length > 0 ? "gold" : "default"}
+          />
+        </div>
+        <div className="stagger-item">
+          <StatCard
+            title="Jadwal Overdue"
+            value={data.overdueSchedules.length === 0 ? "0" : String(data.overdueSchedules.length)}
+            subtitle={data.overdueSchedules.length === 0 ? "Semua jadwal terpenuhi" : "Perlu tindakan segera"}
+            icon={Sprout}
+            variant={data.overdueSchedules.length > 0 ? "gold" : "default"}
+          />
+        </div>
+        <div className="stagger-item">
+          <StatCard
+            title="Proyek Aktif"
+            value={String(data.activeProjects.length)}
+            subtitle={data.activeProjects.length > 0 ? data.activeProjects[0].name : "Tidak ada proyek berjalan"}
+            icon={HardHat}
+            variant="default"
+          />
+        </div>
       </div>
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Alerts */}
-        <Card className="surface-raised">
+        <Card className="surface-raised border">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -235,9 +243,9 @@ export default async function HomePage() {
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/30 hover:shadow-sm transition-all duration-150 text-center group"
+            className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-card hover:border-primary/25 transition-colors duration-150 text-center group pressable surface-raised"
           >
-            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-muted/70 flex items-center justify-center group-hover:bg-primary/8 transition-colors duration-150">
               <Icon className={`w-5 h-5 ${color}`} />
             </div>
             <span className="text-xs font-medium text-foreground leading-tight">{label}</span>
