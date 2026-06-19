@@ -1,49 +1,67 @@
 import { PageShell } from "@/components/layout/PageShell"
 import { StatCard } from "@/components/shared/StatCard"
-import { DuckDailyForm } from "@/components/bebek/DuckDailyForm"
 import { ProductionChart } from "@/components/bebek/ProductionChart"
 import { SalesTable } from "@/components/bebek/SalesTable"
 import { AddSaleDialog } from "@/components/bebek/AddSaleDialog"
+import { AddDailyLogDialog } from "@/components/bebek/AddDailyLogDialog"
+import { AddHealthDialog } from "@/components/bebek/AddHealthDialog"
 import {
+  getDuckBatches,
   getDuckDailyRecent,
+  getDuckDailyForChart,
+  getDuckHealthRecords,
   getSaltingLogs,
   getSalesTransactions,
   getCustomers,
   getHppConfig,
 } from "./actions"
+import { createClient } from "@/lib/supabase/server"
 import { formatRupiah, formatNumber } from "@/lib/utils/format"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bird, Egg, FlaskConical, TrendingUp } from "lucide-react"
+import { Bird, Egg, FlaskConical, TrendingUp, Syringe } from "lucide-react"
 import { PdfExportButton } from "@/components/shared/PdfExportButton"
+import type { FeedType } from "@/types"
 
 export const metadata = { title: "Bebek & Telur" }
 
 const SALTING_STATUS: Record<string, { label: string; className: string }> = {
-  in_process: { label: "Proses",    className: "bg-blue-100 text-blue-800 border-blue-200" },
-  ready:      { label: "Siap",      className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-  sold:       { label: "Terjual",   className: "bg-gray-100 text-gray-600 border-gray-200" },
+  in_process: { label: "Proses",  className: "bg-blue-100 text-blue-800 border-blue-200" },
+  ready:      { label: "Siap",    className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+  sold:       { label: "Terjual", className: "bg-gray-100 text-gray-600 border-gray-200" },
+}
+
+const HEALTH_TYPE: Record<string, string> = {
+  obat:    "bg-red-100 text-red-800",
+  vitamin: "bg-emerald-100 text-emerald-800",
+  vaksin:  "bg-blue-100 text-blue-800",
+  lainnya: "bg-gray-100 text-gray-700",
 }
 
 export default async function BebekPage() {
-  const [daily, saltingLogs, sales, customers, hpp] = await Promise.all([
-    getDuckDailyRecent(30),
+  const supabase = await createClient()
+  const [batches, daily, chartData, healthRecords, saltingLogs, sales, customers, hpp, feedTypesRes] = await Promise.all([
+    getDuckBatches(),
+    getDuckDailyRecent(60),
+    getDuckDailyForChart(365),
+    getDuckHealthRecords(),
     getSaltingLogs(),
     getSalesTransactions(),
     getCustomers(),
     getHppConfig(),
+    supabase.from("feed_types").select("*").order("name"),
   ])
 
-  // Compute month-to-date stats
+  const feedTypes: FeedType[] = (feedTypesRes.data ?? []) as FeedType[]
+
   const now = new Date()
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
   const thisMonth = daily.filter((d) => d.date.startsWith(monthPrefix))
 
   const totalEggsThisMonth = thisMonth.reduce((s, d) => s + d.eggs_total, 0)
-  const totalNetThisMonth = thisMonth.reduce((s, d) => s + d.eggs_total - d.eggs_reject, 0)
-  const totalFeedCostThisMonth = thisMonth.reduce((s, d) => s + d.feed_cost, 0)
+  const totalNetThisMonth  = thisMonth.reduce((s, d) => s + d.eggs_total - d.eggs_reject, 0)
 
   const pendingRevenue = sales
     .filter((s) => s.payment_status !== "paid")
@@ -52,19 +70,25 @@ export default async function BebekPage() {
   const activeSalting = saltingLogs.filter((s) => s.status === "in_process")
   const hppValue = hpp?.value ?? 0
 
+  // Batch summary for today
+  const today = now.toISOString().split("T")[0]
+  const todayLogs = daily.filter((d) => d.date === today)
+
   return (
     <PageShell
       title="Bebek & Telur"
       description="Produksi, pengasinan, dan penjualan telur bebek"
       actions={
-        <div className="flex items-center gap-2">
-          <PdfExportButton href={`/api/pdf/bebek?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`} label="Ekspor PDF" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <PdfExportButton href={`/api/pdf/bebek?year=${now.getFullYear()}&month=${now.getMonth() + 1}`} label="Ekspor PDF" />
+          <AddHealthDialog batches={batches} />
+          <AddDailyLogDialog batches={batches} feedTypes={feedTypes} />
           <AddSaleDialog customers={customers} />
         </div>
       }
     >
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <StatCard
           title="Produksi Bulan Ini"
           value={formatNumber(totalEggsThisMonth)}
@@ -83,44 +107,67 @@ export default async function BebekPage() {
           value={formatRupiah(pendingRevenue)}
           subtitle="Pending + overdue"
           icon={TrendingUp}
+          variant={pendingRevenue > 0 ? "gold" : "default"}
         />
         <StatCard
-          title="HPP Saat Ini"
+          title="HPP / Butir"
           value={formatRupiah(hppValue)}
-          subtitle="per butir"
+          subtitle="Harga pokok produksi"
           icon={Bird}
-          variant="gold"
         />
       </div>
 
-      <Tabs defaultValue="harian" className="space-y-4">
+      {/* Batch status strip */}
+      {batches.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-5">
+          {batches.map((b) => {
+            const log = todayLogs.find((d) => d.batch_id === b.id)
+            const pct = log && b.population > 0
+              ? Math.round((log.eggs_total / b.population) * 100)
+              : null
+            return (
+              <div key={b.id} className="rounded-xl border bg-card p-3 text-center surface-raised">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{b.code}</p>
+                <p className="text-lg font-bold text-foreground mt-0.5 tabular-nums">
+                  {log ? formatNumber(log.eggs_total) : "—"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {pct !== null ? `${pct}%` : `${b.population} ekor`}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <Tabs defaultValue="chart" className="space-y-4">
         <TabsList className="bg-muted/50">
-          <TabsTrigger value="harian">Input Harian</TabsTrigger>
+          <TabsTrigger value="chart">Grafik</TabsTrigger>
+          <TabsTrigger value="harian">Log Harian</TabsTrigger>
           <TabsTrigger value="pengasinan">Pengasinan</TabsTrigger>
           <TabsTrigger value="penjualan">Penjualan</TabsTrigger>
+          <TabsTrigger value="kesehatan">Kesehatan</TabsTrigger>
           <TabsTrigger value="pelanggan">Pelanggan</TabsTrigger>
         </TabsList>
 
-        {/* ─── Harian tab ─────────────────────────────────────── */}
-        <TabsContent value="harian" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <DuckDailyForm />
-            <div className="lg:col-span-2">
-              <ProductionChart data={daily} />
-            </div>
-          </div>
+        {/* ─── Chart tab ──────────────────────────────────────── */}
+        <TabsContent value="chart">
+          <ProductionChart data={chartData} />
+        </TabsContent>
 
-          {/* Recent table */}
+        {/* ─── Harian tab ─────────────────────────────────────── */}
+        <TabsContent value="harian">
           <Card className="surface-raised">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">30 Hari Terakhir</CardTitle>
+              <CardTitle className="text-sm font-semibold">Log Harian Per Kandang</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tanggal</TableHead>
-                    <TableHead className="text-right">Total Telur</TableHead>
+                    <TableHead>Kandang</TableHead>
+                    <TableHead className="text-right">Telur</TableHead>
                     <TableHead className="text-right">Reject</TableHead>
                     <TableHead className="text-right">Bersih</TableHead>
                     <TableHead className="text-right">Pakan (kg)</TableHead>
@@ -131,7 +178,7 @@ export default async function BebekPage() {
                 <TableBody>
                   {daily.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         Belum ada data
                       </TableCell>
                     </TableRow>
@@ -139,14 +186,17 @@ export default async function BebekPage() {
                     daily.map((d) => (
                       <TableRow key={d.id}>
                         <TableCell className="text-sm font-medium">{d.date}</TableCell>
-                        <TableCell className="text-right text-sm">{d.eggs_total.toLocaleString("id-ID")}</TableCell>
-                        <TableCell className="text-right text-sm text-red-600">{d.eggs_reject}</TableCell>
-                        <TableCell className="text-right text-sm font-semibold text-emerald-700">
-                          {(d.eggs_total - d.eggs_reject).toLocaleString("id-ID")}
+                        <TableCell className="text-sm">
+                          <span className="font-medium">{(d.batch as any)?.code ?? "—"}</span>
                         </TableCell>
-                        <TableCell className="text-right text-sm">{d.feed_consumed_kg}</TableCell>
-                        <TableCell className="text-right text-sm">{formatRupiah(d.feed_cost)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                        <TableCell className="text-right text-sm tabular-nums">{formatNumber(d.eggs_total)}</TableCell>
+                        <TableCell className="text-right text-sm text-red-600 tabular-nums">{d.eggs_reject}</TableCell>
+                        <TableCell className="text-right text-sm font-semibold text-emerald-700 tabular-nums">
+                          {formatNumber(d.eggs_total - d.eggs_reject)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{d.feed_consumed_kg}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{formatRupiah(d.feed_cost)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[160px] truncate">
                           {d.notes ?? "—"}
                         </TableCell>
                       </TableRow>
@@ -162,7 +212,7 @@ export default async function BebekPage() {
         <TabsContent value="pengasinan">
           <Card className="surface-raised">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Log Pengasinan</CardTitle>
+              <CardTitle className="text-sm font-semibold">Log Pengasinan</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -189,7 +239,7 @@ export default async function BebekPage() {
                       return (
                         <TableRow key={s.id}>
                           <TableCell className="text-sm">{s.date_salted}</TableCell>
-                          <TableCell className="text-right text-sm">{s.quantity.toLocaleString("id-ID")}</TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">{formatNumber(s.quantity)}</TableCell>
                           <TableCell className="text-sm">{s.worker_names.join(", ") || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{s.storage_location ?? "—"}</TableCell>
                           <TableCell className="text-sm">{s.expected_ready_date}</TableCell>
@@ -210,10 +260,66 @@ export default async function BebekPage() {
         <TabsContent value="penjualan">
           <Card className="surface-raised">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Transaksi Penjualan</CardTitle>
+              <CardTitle className="text-sm font-semibold">Transaksi Penjualan</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <SalesTable transactions={sales} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ─── Kesehatan tab ───────────────────────────────────── */}
+        <TabsContent value="kesehatan">
+          <Card className="surface-raised">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Syringe className="w-4 h-4 text-primary" />
+                  Riwayat Obat & Vitamin
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Kandang</TableHead>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead>Produk</TableHead>
+                    <TableHead>Dosis</TableHead>
+                    <TableHead className="text-right">Biaya</TableHead>
+                    <TableHead>Catatan</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {healthRecords.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        Belum ada catatan kesehatan
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    healthRecords.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-sm">{r.date}</TableCell>
+                        <TableCell className="text-sm font-medium">
+                          {(r.batch as any)?.code ?? "Semua"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={HEALTH_TYPE[r.record_type] ?? ""}>{r.record_type}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm font-medium">{r.product_name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{r.dosage ?? "—"}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{formatRupiah(r.total_cost)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
+                          {r.notes ?? "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
@@ -222,7 +328,7 @@ export default async function BebekPage() {
         <TabsContent value="pelanggan">
           <Card className="surface-raised">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Daftar Pelanggan</CardTitle>
+              <CardTitle className="text-sm font-semibold">Daftar Pelanggan</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -246,7 +352,7 @@ export default async function BebekPage() {
                       <TableRow key={c.id}>
                         <TableCell className="text-sm font-medium">{c.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{c.contact ?? "—"}</TableCell>
-                        <TableCell className="text-right text-sm">{formatRupiah(c.price_per_egg)}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{formatRupiah(c.price_per_egg)}</TableCell>
                         <TableCell className="text-sm uppercase">{c.payment_terms}</TableCell>
                       </TableRow>
                     ))

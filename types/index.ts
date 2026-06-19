@@ -42,9 +42,24 @@ export type Customer = {
 
 // ─── Bebek & Telur ───────────────────────────────────────────────────────────
 
+export type DuckBatch = {
+  id: string
+  code: string
+  name: string
+  population: number
+  feed_kg_per_day: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export type DuckDaily = {
   id: string
   date: string
+  batch_id: string | null
+  batch?: DuckBatch
+  feed_type_id: string | null
+  feed_type?: FeedType
   eggs_total: number
   eggs_reject: number
   feed_consumed_kg: number
@@ -52,6 +67,33 @@ export type DuckDaily = {
   notes: string | null
   created_at: string
   updated_at: string
+}
+
+export type HealthRecordType = "obat" | "vitamin" | "vaksin" | "lainnya"
+
+export type DuckHealthRecord = {
+  id: string
+  date: string
+  batch_id: string | null
+  batch?: DuckBatch
+  record_type: HealthRecordType
+  product_name: string
+  dosage: string | null
+  total_cost: number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SaltingCost = {
+  id: string
+  salting_log_id: string
+  item_name: string
+  quantity: number
+  unit: string
+  unit_cost: number
+  total_cost: number
+  created_at: string
 }
 
 export type SaltingStatus = "in_process" | "ready" | "sold"

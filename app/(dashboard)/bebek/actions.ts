@@ -2,44 +2,110 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
-import type { DuckDaily, SaltingLog, SalesTransaction, Customer } from "@/types"
+import type { DuckBatch, DuckDaily, DuckHealthRecord, SaltingLog, SalesTransaction, Customer } from "@/types"
 
-// ─── Duck Daily ───────────────────────────────────────────────
+// ─── Duck Batches ─────────────────────────────────────────────
 
-export async function getDuckDailyRecent(limit = 30): Promise<DuckDaily[]> {
+export async function getDuckBatches(): Promise<DuckBatch[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from("duck_daily")
+    .from("duck_batches")
     .select("*")
-    .order("date", { ascending: false })
-    .limit(limit)
+    .eq("is_active", true)
+    .order("code")
   if (error) throw new Error(error.message)
   return data ?? []
 }
 
+// ─── Duck Daily ───────────────────────────────────────────────
+
+export async function getDuckDailyRecent(limit = 60): Promise<DuckDaily[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("duck_daily")
+    .select("*, batch:duck_batches(id,code,name,population), feed_type:feed_types(id,name,price_per_kg)")
+    .order("date", { ascending: false })
+    .order("batch_id")
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as DuckDaily[]
+}
+
+export async function getDuckDailyForChart(days = 180): Promise<{ date: string; batch_code: string; eggs_total: number; productivity_pct: number }[]> {
+  const supabase = await createClient()
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  const { data, error } = await supabase
+    .from("duck_daily")
+    .select("date, eggs_total, eggs_reject, batch:duck_batches(code, population)")
+    .gte("date", since.toISOString().split("T")[0])
+    .order("date")
+  if (error) return []
+  return (data ?? []).map((r: any) => ({
+    date: r.date,
+    batch_code: r.batch?.code ?? "?",
+    eggs_total: r.eggs_total ?? 0,
+    productivity_pct: r.batch?.population > 0
+      ? Math.round((r.eggs_total / r.batch.population) * 100 * 10) / 10
+      : 0,
+  }))
+}
+
 export async function addDuckDaily(formData: FormData) {
   const supabase = await createClient()
+  const feedTypeId = formData.get("feed_type_id") as string
   const feedConsumedKg = Number(formData.get("feed_consumed_kg"))
+  const batchId = formData.get("batch_id") as string
 
-  // Get latest feed price
   const { data: feedData } = await supabase
     .from("feed_types")
     .select("price_per_kg")
-    .order("updated_at", { ascending: false })
-    .limit(1)
+    .eq("id", feedTypeId)
     .single()
 
-  const pricePerKg = feedData?.price_per_kg ?? 0
-  const feedCost = feedConsumedKg * pricePerKg
+  const feedCost = feedConsumedKg * (feedData?.price_per_kg ?? 0)
 
   const { error } = await supabase.from("duck_daily").upsert({
     date: formData.get("date") as string,
+    batch_id: batchId || null,
+    feed_type_id: feedTypeId || null,
     eggs_total: Number(formData.get("eggs_total")),
-    eggs_reject: Number(formData.get("eggs_reject")),
+    eggs_reject: Number(formData.get("eggs_reject") ?? 0),
     feed_consumed_kg: feedConsumedKg,
     feed_cost: feedCost,
     notes: (formData.get("notes") as string) || null,
-  }, { onConflict: "date" })
+  }, { onConflict: "date,batch_id" })
+
+  if (error) throw new Error(error.message)
+  revalidatePath("/bebek")
+}
+
+// ─── Duck Health Records ──────────────────────────────────────
+
+export async function getDuckHealthRecords(limit = 50): Promise<DuckHealthRecord[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("duck_health_records")
+    .select("*, batch:duck_batches(id,code,name)")
+    .order("date", { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as DuckHealthRecord[]
+}
+
+export async function addDuckHealthRecord(formData: FormData) {
+  const supabase = await createClient()
+  const batchId = formData.get("batch_id") as string
+
+  const { error } = await supabase.from("duck_health_records").insert({
+    date: formData.get("date") as string,
+    batch_id: batchId || null,
+    record_type: formData.get("record_type") as string,
+    product_name: formData.get("product_name") as string,
+    dosage: (formData.get("dosage") as string) || null,
+    total_cost: Number(formData.get("total_cost") ?? 0),
+    notes: (formData.get("notes") as string) || null,
+  })
 
   if (error) throw new Error(error.message)
   revalidatePath("/bebek")
@@ -65,7 +131,7 @@ export async function addSaltingLog(formData: FormData) {
   const readyDate = new Date(dateSalted)
   readyDate.setDate(readyDate.getDate() + daysToReady)
 
-  const { error } = await supabase.from("salting_log").insert({
+  const { data: log, error } = await supabase.from("salting_log").insert({
     date_salted: dateSalted,
     quantity: Number(formData.get("quantity")),
     worker_names: (formData.get("worker_names") as string)
@@ -75,9 +141,21 @@ export async function addSaltingLog(formData: FormData) {
     storage_location: (formData.get("storage_location") as string) || null,
     expected_ready_date: readyDate.toISOString().split("T")[0],
     status: "in_process",
-  })
+  }).select("id").single()
 
   if (error) throw new Error(error.message)
+
+  // Insert salting costs if provided
+  const costsRaw = formData.get("costs") as string
+  if (costsRaw && log?.id) {
+    const costs = JSON.parse(costsRaw) as { item_name: string; quantity: number; unit: string; unit_cost: number }[]
+    if (costs.length > 0) {
+      await supabase.from("salting_costs").insert(
+        costs.map((c) => ({ ...c, salting_log_id: log.id }))
+      )
+    }
+  }
+
   revalidatePath("/bebek")
 }
 
@@ -134,13 +212,12 @@ export async function getSalesTransactions(): Promise<SalesTransaction[]> {
 
 export async function addSalesTransaction(formData: FormData) {
   const supabase = await createClient()
-  const customerId = formData.get("customer_id") as string
   const quantity = Number(formData.get("quantity"))
   const unitPrice = Number(formData.get("unit_price"))
 
   const { error } = await supabase.from("sales_transactions").insert({
     date: formData.get("date") as string,
-    customer_id: customerId,
+    customer_id: formData.get("customer_id") as string,
     product_type: formData.get("product_type") as string,
     quantity,
     unit_price: unitPrice,
@@ -161,14 +238,14 @@ export async function markPaymentPaid(id: string) {
   revalidatePath("/bebek")
 }
 
-// ─── Monthly summary ──────────────────────────────────────────
+// ─── Summary ──────────────────────────────────────────────────
 
 export async function getMonthlyDuckSummary() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("monthly_duck_summary")
     .select("*")
-    .limit(12)
+    .limit(24)
   if (error) return []
   return data ?? []
 }
