@@ -7,7 +7,7 @@ values ('544G', null, 0, 500, 0) on conflict do nothing;
 
 insert into duck_daily (date, batch_id, feed_type_id, eggs_total, eggs_reject, feed_consumed_kg, feed_cost, notes)
 select
-  v.date,
+  v.date::date,
   b.id as batch_id,
   (select id from feed_types where name = v.jenis_pakan limit 1) as feed_type_id,
   v.eggs_total,
@@ -1118,3 +1118,4 @@ from (values
 join duck_batches b on b.code = v.batch_code
 where v.eggs_total is not null
 on conflict (date, batch_id) do nothing;
+
