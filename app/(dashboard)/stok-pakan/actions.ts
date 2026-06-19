@@ -61,6 +61,33 @@ export async function updateFeedThreshold(id: string, threshold: number) {
   revalidatePath("/stok-pakan")
 }
 
+export async function adjustFeedStock(id: string, mode: "set" | "subtract" | "add", amount: number) {
+  const supabase = await createClient()
+  if (mode === "set") {
+    const { error } = await supabase
+      .from("feed_types")
+      .update({ current_stock_kg: amount })
+      .eq("id", id)
+    if (error) throw new Error(error.message)
+  } else {
+    const { data, error: fetchErr } = await supabase
+      .from("feed_types")
+      .select("current_stock_kg")
+      .eq("id", id)
+      .single()
+    if (fetchErr) throw new Error(fetchErr.message)
+    const next = mode === "subtract"
+      ? Math.max(0, (data.current_stock_kg ?? 0) - amount)
+      : (data.current_stock_kg ?? 0) + amount
+    const { error } = await supabase
+      .from("feed_types")
+      .update({ current_stock_kg: next })
+      .eq("id", id)
+    if (error) throw new Error(error.message)
+  }
+  revalidatePath("/stok-pakan")
+}
+
 export async function deleteFeedType(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from("feed_types").delete().eq("id", id)
