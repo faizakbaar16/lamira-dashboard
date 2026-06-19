@@ -1,6 +1,7 @@
 import { PageShell } from "@/components/layout/PageShell"
 import { FeedStockCard } from "@/components/stok-pakan/FeedStockCard"
 import { AddPurchaseDialog } from "@/components/stok-pakan/AddPurchaseDialog"
+import { AddFeedTypeDialog } from "@/components/stok-pakan/AddFeedTypeDialog"
 import { getFeedTypes, getFeedPurchases } from "./actions"
 import { formatRupiah, formatDateShort } from "@/lib/utils/format"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,7 +20,12 @@ export default async function StokPakanPage() {
     <PageShell
       title="Stok Pakan"
       description="Manajemen inventaris pakan bebek dan riwayat pembelian"
-      actions={<AddPurchaseDialog feedTypes={feedTypes} />}
+      actions={
+        <div className="flex items-center gap-2">
+          <AddFeedTypeDialog />
+          <AddPurchaseDialog feedTypes={feedTypes} />
+        </div>
+      }
     >
       {/* Low stock alert banner */}
       {lowStockItems.length > 0 && (

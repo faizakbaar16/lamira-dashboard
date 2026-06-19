@@ -60,3 +60,11 @@ export async function updateFeedThreshold(id: string, threshold: number) {
   if (error) throw new Error(error.message)
   revalidatePath("/stok-pakan")
 }
+
+export async function deleteFeedType(id: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from("feed_types").delete().eq("id", id)
+  if (error) throw new Error(error.message)
+  revalidatePath("/stok-pakan")
+  revalidatePath("/bebek")
+}

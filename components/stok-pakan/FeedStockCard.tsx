@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Package, AlertTriangle } from "lucide-react"
+import { DeleteFeedTypeButton } from "./DeleteFeedTypeButton"
 
 type Props = { feedType: FeedType }
 
@@ -59,9 +60,12 @@ export function FeedStockCard({ feedType }: Props) {
         </div>
 
         <div className="pt-3 border-t border-border">
-          <div className="flex justify-between text-xs">
+          <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Harga terakhir</span>
             <span className="font-medium">{formatRupiah(feedType.price_per_kg)}/kg</span>
+          </div>
+          <div className="flex justify-end mt-2">
+            <DeleteFeedTypeButton id={feedType.id} name={feedType.name} />
           </div>
         </div>
       </CardContent>

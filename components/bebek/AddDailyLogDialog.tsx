@@ -7,29 +7,65 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ClipboardList } from "lucide-react"
+import { ClipboardList, Plus, X } from "lucide-react"
 import { toast } from "sonner"
-import { addDuckDaily } from "@/app/(dashboard)/bebek/actions"
+import { addDuckDaily, addFeedType } from "@/app/(dashboard)/bebek/actions"
 import type { DuckBatch, FeedType } from "@/types"
 import { todayISO } from "@/lib/utils/format"
 
 const FEED_KG_PER_DUCK = 0.13
+const NEW_FEED_SENTINEL = "__new__"
 
 type Props = {
   batches: DuckBatch[]
   feedTypes: FeedType[]
 }
 
-export function AddDailyLogDialog({ batches, feedTypes }: Props) {
+export function AddDailyLogDialog({ batches, feedTypes: initialFeedTypes }: Props) {
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [batchId, setBatchId] = useState("")
   const [feedTypeId, setFeedTypeId] = useState("")
+  const [feedTypes, setFeedTypes] = useState<FeedType[]>(initialFeedTypes)
+  const [showNewFeed, setShowNewFeed] = useState(false)
+  const [newFeedName, setNewFeedName] = useState("")
+  const [newFeedPrice, setNewFeedPrice] = useState("")
+  const [savingFeed, startSavingFeed] = useTransition()
 
   const selectedBatch = batches.find((b) => b.id === batchId)
   const suggestedFeedKg = selectedBatch
     ? (selectedBatch.population * FEED_KG_PER_DUCK).toFixed(1)
     : ""
+
+  function handleFeedTypeChange(v: string | null) {
+    if (v === NEW_FEED_SENTINEL) {
+      setShowNewFeed(true)
+      setFeedTypeId("")
+    } else {
+      setFeedTypeId(v ?? "")
+      setShowNewFeed(false)
+    }
+  }
+
+  function handleSaveNewFeed() {
+    if (!newFeedName.trim()) return
+    const fd = new FormData()
+    fd.set("name", newFeedName.trim())
+    fd.set("price_per_kg", newFeedPrice || "0")
+    startSavingFeed(async () => {
+      try {
+        const created = await addFeedType(fd)
+        setFeedTypes((prev) => [...prev, created as FeedType])
+        setFeedTypeId(created.id)
+        setShowNewFeed(false)
+        setNewFeedName("")
+        setNewFeedPrice("")
+        toast.success(`Jenis pakan "${created.name}" ditambahkan`)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Gagal menyimpan pakan")
+      }
+    })
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -41,6 +77,7 @@ export function AddDailyLogDialog({ batches, feedTypes }: Props) {
         setOpen(false)
         setBatchId("")
         setFeedTypeId("")
+        setShowNewFeed(false)
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Gagal menyimpan")
       }
@@ -102,12 +139,19 @@ export function AddDailyLogDialog({ batches, feedTypes }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Jenis Pakan</Label>
-                <Select name="feed_type_id" value={feedTypeId} onValueChange={(v) => setFeedTypeId(v ?? "")}>
+                <input type="hidden" name="feed_type_id" value={feedTypeId} />
+                <Select value={feedTypeId || (showNewFeed ? NEW_FEED_SENTINEL : "")} onValueChange={handleFeedTypeChange}>
                   <SelectTrigger><SelectValue placeholder="Pilih pakan" /></SelectTrigger>
                   <SelectContent>
                     {feedTypes.map((f) => (
                       <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                     ))}
+                    <SelectItem value={NEW_FEED_SENTINEL}>
+                      <span className="flex items-center gap-1.5 text-primary font-medium">
+                        <Plus className="w-3.5 h-3.5" />
+                        Tambah jenis baru...
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -127,6 +171,52 @@ export function AddDailyLogDialog({ batches, feedTypes }: Props) {
                 />
               </div>
             </div>
+
+            {showNewFeed && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-primary">Tambah Jenis Pakan Baru</p>
+                  <button
+                    type="button"
+                    onClick={() => { setShowNewFeed(false); setNewFeedName(""); setNewFeedPrice("") }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nama Pakan</Label>
+                    <Input
+                      value={newFeedName}
+                      onChange={(e) => setNewFeedName(e.target.value)}
+                      placeholder="cth: Konsentrat 511"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Harga / kg (Rp)</Label>
+                    <Input
+                      value={newFeedPrice}
+                      onChange={(e) => setNewFeedPrice(e.target.value)}
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveNewFeed}
+                  disabled={savingFeed || !newFeedName.trim()}
+                  className="h-7 text-xs"
+                >
+                  {savingFeed ? "Menyimpan..." : "Simpan & Pilih"}
+                </Button>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="notes">Catatan</Label>

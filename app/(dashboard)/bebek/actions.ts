@@ -80,6 +80,23 @@ export async function addDuckDaily(formData: FormData) {
   revalidatePath("/bebek")
 }
 
+// ─── Feed Types ───────────────────────────────────────────────
+
+export async function addFeedType(formData: FormData): Promise<{ id: string; name: string; price_per_kg: number }> {
+  const supabase = await createClient()
+  const name = (formData.get("name") as string).trim()
+  const price_per_kg = Number(formData.get("price_per_kg") ?? 0)
+  if (!name) throw new Error("Nama pakan wajib diisi")
+  const { data, error } = await supabase
+    .from("feed_types")
+    .insert({ name, price_per_kg })
+    .select("id,name,price_per_kg")
+    .single()
+  if (error) throw new Error(error.message)
+  revalidatePath("/bebek")
+  return data
+}
+
 // ─── Duck Health Records ──────────────────────────────────────
 
 export async function getDuckHealthRecords(limit = 50): Promise<DuckHealthRecord[]> {
